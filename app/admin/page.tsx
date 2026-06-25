@@ -7,8 +7,9 @@ export default function AdminDashboardPage() {
   const [daftarKandidat, setDaftarKandidat] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // STATE DIPERBARUI: Sekarang memiliki "foto"
+  // STATE FORM & MODE EDIT
   const [formKandidat, setFormKandidat] = useState({ nomor_urut: '', nama_paslon: '', visi_misi: '', foto: '' });
+  const [editId, setEditId] = useState<number | null>(null); // Menyimpan ID kandidat yang sedang diedit
 
   const fetchAdminData = async () => {
     setIsLoading(true);
@@ -31,27 +32,48 @@ export default function AdminDashboardPage() {
     fetchAdminData();
   }, []);
 
-  const tambahKandidat = async (e: React.FormEvent) => {
+  // FUNGSI SIMPAN (Bisa Tambah Baru atau Edit)
+  const simpanKandidat = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Jika editId ada isinya, panggil PUT. Jika kosong, panggil POST.
+      const method = editId ? 'PUT' : 'POST';
+      const bodyData = editId ? { ...formKandidat, id_kandidat: editId } : formKandidat;
+
       const res = await fetch('/api/admin', {
-        method: 'POST',
+        method: method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formKandidat),
+        body: JSON.stringify(bodyData),
       });
       const data = await res.json();
       
       if (data.status === 'Sukses') {
-        alert('Mantap! Kandidat baru berhasil ditambahkan!');
-        // KOSONGKAN FORM SETELAH SUKSES
-        setFormKandidat({ nomor_urut: '', nama_paslon: '', visi_misi: '', foto: '' }); 
+        alert(editId ? 'Kandidat berhasil diperbarui!' : 'Kandidat baru berhasil ditambahkan!');
+        batalkanEdit(); // Kosongkan form dan reset mode
         fetchAdminData();
       } else {
-        alert('Gagal menambah kandidat.');
+        alert('Gagal menyimpan data.');
       }
     } catch (error) {
       alert('Terjadi kesalahan jaringan.');
     }
+  };
+
+  // FUNGSI SAAT TOMBOL EDIT DIKLIK
+  const klikEdit = (kandidat: any) => {
+    setFormKandidat({
+      nomor_urut: kandidat.nomor_urut,
+      nama_paslon: kandidat.nama_paslon,
+      visi_misi: kandidat.visi_misi,
+      foto: kandidat.foto || ''
+    });
+    setEditId(kandidat.id_kandidat); // Aktifkan mode edit
+  };
+
+  // FUNGSI BATAL EDIT
+  const batalkanEdit = () => {
+    setFormKandidat({ nomor_urut: '', nama_paslon: '', visi_misi: '', foto: '' });
+    setEditId(null);
   };
 
   const hapusKandidat = async (id: number) => {
@@ -63,9 +85,9 @@ export default function AdminDashboardPage() {
           body: JSON.stringify({ id_kandidat: id }),
         });
         const data = await res.json();
-        
         if (data.status === 'Sukses') {
           alert('Kandidat berhasil dihapus!');
+          if (editId === id) batalkanEdit(); // Batal edit jika yang dihapus sedang diedit
           fetchAdminData();
         }
       } catch (error) {
@@ -98,6 +120,7 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
+        {/* DAFTAR KANDIDAT */}
         <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
           <h3 className="text-xl font-bold text-slate-800 mb-6">Kelola Kandidat</h3>
           <div className="space-y-4">
@@ -107,7 +130,6 @@ export default function AdminDashboardPage() {
               daftarKandidat.map((k) => (
                 <div key={k.id_kandidat} className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
                   <div className="flex items-center gap-4">
-                    {/* Tampilkan thumbnail foto kecil jika ada */}
                     {k.foto ? (
                       <img src={k.foto} alt="foto paslon" className="w-12 h-12 object-cover rounded-full shadow-sm" />
                     ) : (
@@ -119,22 +141,42 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                   
-                  <button 
-                    onClick={() => hapusKandidat(k.id_kandidat)}
-                    className="bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 px-4 rounded-lg transition-colors duration-200"
-                  >
-                    Hapus
-                  </button>
+                  <div className="flex gap-2">
+                    {/* TOMBOL EDIT BARU */}
+                    <button 
+                      onClick={() => klikEdit(k)}
+                      className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200"
+                    >
+                      Edit
+                    </button>
+                    {/* TOMBOL HAPUS */}
+                    <button 
+                      onClick={() => hapusKandidat(k.id_kandidat)}
+                      className="bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 px-4 rounded-lg transition-colors duration-200"
+                    >
+                      Hapus
+                    </button>
+                  </div>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="text-xl font-bold text-slate-800 mb-6">Tambah Paslon Baru</h3>
+        {/* FORM TAMBAH / EDIT KANDIDAT */}
+        <div className={`bg-white p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden transition-all duration-300 ${editId ? 'ring-4 ring-yellow-400/30' : ''}`}>
+          {/* Tanda Mode Edit */}
+          {editId && (
+            <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-black px-4 py-1 rounded-bl-lg">
+              MODE EDIT AKTIF
+            </div>
+          )}
+
+          <h3 className="text-xl font-bold text-slate-800 mb-6">
+            {editId ? 'Perbarui Data Paslon' : 'Tambah Paslon Baru'}
+          </h3>
           
-          <form onSubmit={tambahKandidat} className="space-y-5">
+          <form onSubmit={simpanKandidat} className="space-y-5">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Nomor Urut</label>
               <input 
@@ -143,7 +185,6 @@ export default function AdminDashboardPage() {
                 value={formKandidat.nomor_urut} 
                 onChange={(e) => setFormKandidat({...formKandidat, nomor_urut: e.target.value})} 
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
-                placeholder="Contoh: 3"
               />
             </div>
             
@@ -155,11 +196,9 @@ export default function AdminDashboardPage() {
                 value={formKandidat.nama_paslon} 
                 onChange={(e) => setFormKandidat({...formKandidat, nama_paslon: e.target.value})} 
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
-                placeholder="Contoh: Joko & Widodo"
               />
             </div>
 
-            {/* FORM INPUT FOTO BARU */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Link Foto (atau nama file)</label>
               <input 
@@ -167,9 +206,7 @@ export default function AdminDashboardPage() {
                 value={formKandidat.foto} 
                 onChange={(e) => setFormKandidat({...formKandidat, foto: e.target.value})} 
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
-                placeholder="Contoh: /paslon3.jpg atau Link Unsplash"
               />
-              <p className="text-xs text-slate-500 mt-1">*Masukkan file foto ke folder public, lalu ketik namanya disini (misal: /foto.png)</p>
             </div>
             
             <div>
@@ -180,16 +217,28 @@ export default function AdminDashboardPage() {
                 onChange={(e) => setFormKandidat({...formKandidat, visi_misi: e.target.value})} 
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
                 rows={3}
-                placeholder="Deskripsikan visi dan misi paslon..."
               ></textarea>
             </div>
             
-            <button 
-              type="submit" 
-              className="w-full bg-slate-800 hover:bg-blue-600 text-white font-bold py-4 rounded-xl transition-colors duration-300 shadow-md"
-            >
-              + Simpan ke Database
-            </button>
+            <div className="flex gap-4">
+              <button 
+                type="submit" 
+                className={`flex-1 text-white font-bold py-4 rounded-xl transition-colors duration-300 shadow-md ${editId ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-slate-800 hover:bg-blue-600'}`}
+              >
+                {editId ? 'Update Database' : '+ Simpan ke Database'}
+              </button>
+              
+              {/* Tombol Batal Muncul Jika Sedang Edit */}
+              {editId && (
+                <button 
+                  type="button" 
+                  onClick={batalkanEdit}
+                  className="px-6 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-colors duration-300"
+                >
+                  Batal
+                </button>
+              )}
+            </div>
           </form>
         </div>
       </div>

@@ -14,8 +14,9 @@ export async function GET() {
 
     const belumMemilih = totalPemilih - suaraMasuk;
 
+    // BUG FIXED: Menambahkan k.visi_misi ke dalam perintah SELECT
     const kandidatQuery = `
-      SELECT k.id_kandidat, k.nomor_urut, k.nama_paslon, k.foto, COUNT(s.id_suara) as perolehan_suara
+      SELECT k.id_kandidat, k.nomor_urut, k.nama_paslon, k.visi_misi, k.foto, COUNT(s.id_suara) as perolehan_suara
       FROM kandidat k
       LEFT JOIN suara s ON k.id_kandidat = s.id_kandidat
       GROUP BY k.id_kandidat
@@ -33,7 +34,7 @@ export async function GET() {
   }
 }
 
-// POST: Menambah Kandidat (SEKARANG MENERIMA FOTO)
+// POST: Menambah Kandidat Baru
 export async function POST(request: Request) {
   try {
     const { nomor_urut, nama_paslon, visi_misi, foto } = await request.json();
@@ -44,6 +45,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: 'Sukses' });
   } catch (error) {
     return NextResponse.json({ status: 'Error', pesan: 'Gagal menambah.' }, { status: 500 });
+  }
+}
+
+// PUT: Mengedit/Update Kandidat
+export async function PUT(request: Request) {
+  try {
+    const { id_kandidat, nomor_urut, nama_paslon, visi_misi, foto } = await request.json();
+    await pool.query(
+      'UPDATE kandidat SET nomor_urut = $1, nama_paslon = $2, visi_misi = $3, foto = $4 WHERE id_kandidat = $5',
+      [nomor_urut, nama_paslon, visi_misi, foto, id_kandidat]
+    );
+    return NextResponse.json({ status: 'Sukses' });
+  } catch (error) {
+    return NextResponse.json({ status: 'Error', pesan: 'Gagal mengupdate.' }, { status: 500 });
   }
 }
 
