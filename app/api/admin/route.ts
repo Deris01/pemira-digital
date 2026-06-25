@@ -15,7 +15,7 @@ export async function GET() {
     const belumMemilih = totalPemilih - suaraMasuk;
 
     const kandidatQuery = `
-      SELECT k.id_kandidat, k.nomor_urut, k.nama_paslon, COUNT(s.id_suara) as perolehan_suara
+      SELECT k.id_kandidat, k.nomor_urut, k.nama_paslon, k.foto, COUNT(s.id_suara) as perolehan_suara
       FROM kandidat k
       LEFT JOIN suara s ON k.id_kandidat = s.id_kandidat
       GROUP BY k.id_kandidat
@@ -33,11 +33,14 @@ export async function GET() {
   }
 }
 
-// POST: Menambah Kandidat
+// POST: Menambah Kandidat (SEKARANG MENERIMA FOTO)
 export async function POST(request: Request) {
   try {
-    const { nomor_urut, nama_paslon, visi_misi } = await request.json();
-    await pool.query('INSERT INTO kandidat (nomor_urut, nama_paslon, visi_misi) VALUES ($1, $2, $3)', [nomor_urut, nama_paslon, visi_misi]);
+    const { nomor_urut, nama_paslon, visi_misi, foto } = await request.json();
+    await pool.query(
+      'INSERT INTO kandidat (nomor_urut, nama_paslon, visi_misi, foto) VALUES ($1, $2, $3, $4)', 
+      [nomor_urut, nama_paslon, visi_misi, foto]
+    );
     return NextResponse.json({ status: 'Sukses' });
   } catch (error) {
     return NextResponse.json({ status: 'Error', pesan: 'Gagal menambah.' }, { status: 500 });

@@ -7,96 +7,192 @@ export default function AdminDashboardPage() {
   const [daftarKandidat, setDaftarKandidat] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // STATE DIPERBARUI: Sekarang memiliki "foto"
+  const [formKandidat, setFormKandidat] = useState({ nomor_urut: '', nama_paslon: '', visi_misi: '', foto: '' });
+
   const fetchAdminData = async () => {
+    setIsLoading(true);
     try {
       const res = await fetch('/api/admin');
       const result = await res.json();
       
       if (result.status === 'Sukses') {
         setStatistik(result.statistik);
-        setDaftarKandidat(result.kandidat);
+        setDaftarKandidat(result.kandidat || []);
       }
     } catch (error) {
-      console.error("Gagal mengambil data admin", error);
+      console.error("Gagal mengambil data", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Mengambil data saat halaman pertama kali dimuat
   useEffect(() => {
     fetchAdminData();
   }, []);
 
+  const tambahKandidat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formKandidat),
+      });
+      const data = await res.json();
+      
+      if (data.status === 'Sukses') {
+        alert('Mantap! Kandidat baru berhasil ditambahkan!');
+        // KOSONGKAN FORM SETELAH SUKSES
+        setFormKandidat({ nomor_urut: '', nama_paslon: '', visi_misi: '', foto: '' }); 
+        fetchAdminData();
+      } else {
+        alert('Gagal menambah kandidat.');
+      }
+    } catch (error) {
+      alert('Terjadi kesalahan jaringan.');
+    }
+  };
+
+  const hapusKandidat = async (id: number) => {
+    if (confirm("AWAS! Yakin ingin menghapus kandidat ini? Semua perolehan suaranya juga akan ikut terhapus!")) {
+      try {
+        const res = await fetch('/api/admin', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id_kandidat: id }),
+        });
+        const data = await res.json();
+        
+        if (data.status === 'Sukses') {
+          alert('Kandidat berhasil dihapus!');
+          fetchAdminData();
+        }
+      } catch (error) {
+        alert('Terjadi kesalahan jaringan.');
+      }
+    }
+  };
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center font-bold text-slate-500">Memuat data Admin...</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-      <aside className="w-full md:w-64 bg-slate-900 text-white p-6 flex flex-col">
-        <h1 className="text-2xl font-extrabold text-blue-400 mb-8">PANITIA PEMIRA</h1>
-        <nav className="flex flex-col gap-4 flex-grow">
-          <a href="#" className="bg-blue-600 text-white px-4 py-3 rounded-lg font-bold transition">Dashboard Hasil</a>
-        </nav>
-        <button className="mt-8 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-bold transition w-full">
-          Logout Admin
-        </button>
-      </aside>
+    <div className="min-h-screen bg-slate-50 p-8">
+      <h2 className="text-3xl font-extrabold text-slate-800 mb-8">DASHBOARD PANITIA</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <p className="text-slate-500 text-sm uppercase font-bold tracking-wider">Total Hak Suara</p>
+          <p className="text-5xl font-black text-slate-800 mt-2">{statistik?.totalPemilih || 0}</p>
+        </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-b-4 border-b-blue-500">
+          <p className="text-slate-500 text-sm uppercase font-bold tracking-wider">Suara Masuk</p>
+          <p className="text-5xl font-black text-blue-600 mt-2">{statistik?.suaraMasuk || 0}</p>
+        </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-b-4 border-b-red-500">
+          <p className="text-slate-500 text-sm uppercase font-bold tracking-wider">Belum Memilih</p>
+          <p className="text-5xl font-black text-red-500 mt-2">{statistik?.belumMemilih || 0}</p>
+        </div>
+      </div>
 
-      <main className="flex-1 p-8">
-        <header className="mb-8 flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-bold text-slate-800">Dashboard Pemantauan</h2>
-            <p className="text-slate-500 mt-1">Pantau perolehan suara secara real-time.</p>
-          </div>
-          <button 
-            onClick={fetchAdminData} 
-            className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-bold transition flex items-center gap-2"
-          >
-            Refresh Data
-          </button>
-        </header>
-
-        {isLoading ? (
-          <p className="text-center text-slate-500 font-bold animate-pulse mt-20">Memuat data dari server...</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <p className="text-slate-500 text-sm font-bold uppercase mb-1">Total Hak Suara</p>
-                <p className="text-4xl font-black text-slate-800">{statistik.totalPemilih}</p>
-              </div>
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-blue-500">
-                <p className="text-slate-500 text-sm font-bold uppercase mb-1">Suara Masuk</p>
-                <p className="text-4xl font-black text-blue-600">{statistik.suaraMasuk}</p>
-              </div>
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
-                <p className="text-slate-500 text-sm font-bold uppercase mb-1">Belum Memilih</p>
-                <p className="text-4xl font-black text-red-500">{statistik.belumMemilih}</p>
-              </div>
-            </div>
-
-            <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-              <h3 className="text-xl font-bold text-slate-800 mb-6">Perolehan Suara Sementara</h3>
-              <div className="space-y-6">
-                {daftarKandidat.map((kandidat) => {
-                  const perolehan = parseInt(kandidat.perolehan_suara);
-                  const persentase = statistik.suaraMasuk === 0 ? 0 : Math.round((perolehan / statistik.suaraMasuk) * 100);
-                  
-                  return (
-                    <div key={kandidat.id_kandidat}>
-                      <div className="flex justify-between items-end mb-2">
-                        <span className="font-bold text-slate-700">0{kandidat.nomor_urut} - {kandidat.nama_paslon}</span>
-                        <span className="font-black text-blue-600 text-xl">{perolehan} <span className="text-sm text-slate-500 font-medium">suara ({persentase}%)</span></span>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
-                        <div className="bg-blue-500 h-4 rounded-full transition-all duration-1000 ease-out" style={{ width: `${persentase}%` }}></div>
-                      </div>
+      <div className="grid md:grid-cols-2 gap-8">
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="text-xl font-bold text-slate-800 mb-6">Kelola Kandidat</h3>
+          <div className="space-y-4">
+            {daftarKandidat.length === 0 ? (
+              <p className="text-slate-400 italic">Belum ada kandidat terdaftar.</p>
+            ) : (
+              daftarKandidat.map((k) => (
+                <div key={k.id_kandidat} className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    {/* Tampilkan thumbnail foto kecil jika ada */}
+                    {k.foto ? (
+                      <img src={k.foto} alt="foto paslon" className="w-12 h-12 object-cover rounded-full shadow-sm" />
+                    ) : (
+                      <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-xs text-slate-400">No Pic</div>
+                    )}
+                    <div>
+                      <span className="font-bold text-slate-800 block text-lg">{k.nomor_urut}. {k.nama_paslon}</span>
+                      <span className="text-sm font-bold text-blue-600">{k.perolehan_suara} Suara Terkumpul</span>
                     </div>
-                  )
-                })}
-              </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => hapusKandidat(k.id_kandidat)}
+                    className="bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 px-4 rounded-lg transition-colors duration-200"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="text-xl font-bold text-slate-800 mb-6">Tambah Paslon Baru</h3>
+          
+          <form onSubmit={tambahKandidat} className="space-y-5">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Nomor Urut</label>
+              <input 
+                type="number" 
+                required 
+                value={formKandidat.nomor_urut} 
+                onChange={(e) => setFormKandidat({...formKandidat, nomor_urut: e.target.value})} 
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
+                placeholder="Contoh: 3"
+              />
             </div>
-          </>
-        )}
-      </main>
+            
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Nama Lengkap Paslon</label>
+              <input 
+                type="text" 
+                required 
+                value={formKandidat.nama_paslon} 
+                onChange={(e) => setFormKandidat({...formKandidat, nama_paslon: e.target.value})} 
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
+                placeholder="Contoh: Joko & Widodo"
+              />
+            </div>
+
+            {/* FORM INPUT FOTO BARU */}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Link Foto (atau nama file)</label>
+              <input 
+                type="text" 
+                value={formKandidat.foto} 
+                onChange={(e) => setFormKandidat({...formKandidat, foto: e.target.value})} 
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
+                placeholder="Contoh: /paslon3.jpg atau Link Unsplash"
+              />
+              <p className="text-xs text-slate-500 mt-1">*Masukkan file foto ke folder public, lalu ketik namanya disini (misal: /foto.png)</p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Visi & Misi</label>
+              <textarea 
+                required 
+                value={formKandidat.visi_misi} 
+                onChange={(e) => setFormKandidat({...formKandidat, visi_misi: e.target.value})} 
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all" 
+                rows={3}
+                placeholder="Deskripsikan visi dan misi paslon..."
+              ></textarea>
+            </div>
+            
+            <button 
+              type="submit" 
+              className="w-full bg-slate-800 hover:bg-blue-600 text-white font-bold py-4 rounded-xl transition-colors duration-300 shadow-md"
+            >
+              + Simpan ke Database
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
